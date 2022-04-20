@@ -107,13 +107,14 @@ Global_CDDA_marine_test <-
 
 #---- MPA Size range ----
 
-Global_Natura2000_marine %>%
+Natura2000_SizeRange <- Global_Natura2000_marine %>%
   group_by(Lot, CountryFile, Order, AreaGroup) %>%
   summarise(N = n()) %>%
   arrange(match(AreaGroup, varAreaGroup)) %>%
   pivot_wider(names_from = "AreaGroup",
               values_from = "N") %>%
   arrange(Order) %>%
+  ungroup() %>%
   select(-Order) %>%
   print()
 
