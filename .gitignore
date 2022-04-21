@@ -28,3 +28,4 @@ vignettes/*.pdf
 .Renviron
 .DS_Store
 Cinea_MPA.Rproj
+Output
