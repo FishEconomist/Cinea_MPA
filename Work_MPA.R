@@ -104,10 +104,10 @@ varAreaGroup <-
   c("0-1 km2",
     "1-2 km2",
     "2-3 km2",
-    "1-3 km2",
+    # "1-3 km2",
     "3-4 km2",
     "4-5 km2",
-    "3-5 km2",
+    # "3-5 km2",
     "5-10 km2",
     "over 10 km2")
 
@@ -139,13 +139,8 @@ Global_marine_Natura2000 <-
       AREAHA > 1000 ~ "over 10 km2",
       TRUE ~ "no size reported"
     ),
-    MarineShareGroup = case_when(
-      MarineShare <= 0.25 ~ "<25%",
-      MarineShare <= 0.5 ~ "25%-50%",
-      MarineShare <= 0.75 ~ "50%-75%",
-      MarineShare <= 1 ~ ">75%",
-      TRUE ~ "Others"
-    ))
+    MarineShareGroup = trunc(MarineShare * 10) *10
+    )
 
 # dplyr::left_join(
 # Global_CDDA_marine_init,
@@ -170,13 +165,8 @@ Global_marine_CDDA <-
     GISarea_land = ifelse(is.na(GISarea_land), 0, GISarea_land),
     MarineShare = 1 - GISarea_land / GISarea,
     MarineArea <- MarineShare * siteArea, 
-    MarineShareGroup = case_when(
-      MarineShare <= 0.25 ~ "<25%",
-      MarineShare <= 0.5 ~ "25%-50%",
-      MarineShare <= 0.75 ~ "50%-75%",
-      MarineShare <= 1 ~ ">75%",
-      TRUE ~ "Others"
-    ))
+    MarineShareGroup = trunc(MarineShare * 10) *10
+    )
 
 Global_marine_CDDA <- 
 Global_marine_CDDA %>%
@@ -350,6 +340,26 @@ size_vs_marine_CDDA <-
               values_from = "N") %>%
   print()
 
+
+area_vs_marine_Natura2000 <- 
+  Global_marine_Natura2000 %>%
+  group_by(MarineShareGroup, AreaGroup) %>%
+  summarise(area = round(sum(AREAHA, na.rm = TRUE) / 100)) %>%
+  # arrange(match(iucnCategory, variucnCategory)) %>%
+  pivot_wider(names_from = "AreaGroup",
+              values_from = "area") %>%
+  print()
+
+area_vs_marine_CDDA <- 
+  Global_marine_CDDA %>%
+  group_by(MarineShareGroup, AreaGroup) %>%
+  summarise(area = round(sum(siteArea, na.rm = TRUE)/ 100)) %>%
+  # arrange(match(iucnCategory, variucnCategory)) %>%
+  pivot_wider(names_from = "AreaGroup",
+              values_from = "area") %>%
+  print()
+
+
 #---- MPA Totals for over X km2----
 
 #### CHANGE X HERE - X in hectares
@@ -496,3 +506,104 @@ st_write(limited_Global_marine_CDDA_sf,
          "Output/Global_CDDA_5k.gpkg", 
          "CDDA marine", 
          append = FALSE)
+
+#---- here ----
+
+test <- st_combine(Global_Natura2000_marine_sf)
+area <- st_area(test)
+
+for(i in seq(0, 10, by = 1)){
+  for(j in seq(0, 1, by = .1)){
+    
+    Selection <- 
+      Global_marine_Natura2000 %>%
+      filter(AREAHA >= i *100 &
+               MarineShare >= j) %>%
+      select(SITECODE)
+    
+    Selection_sf <- 
+      right_join(
+        Global_Natura2000_marine_sf,
+        Selection,
+        by = "SITECODE"
+      )
+    
+    test <- st_combine(Selection_sf)
+    area <- st_area(test) / 1e6
+    
+    
+    CoverageTemp <- 
+      data.frame(
+        SizeGroup = i,
+        MarineArea = j,
+        Value = area)
+    
+    if(i == 0 & j == 0){
+      Coverage <- CoverageTemp
+    } else {
+      Coverage <- 
+        bind_rows(
+          Coverage,
+          CoverageTemp)
+    }
+  }
+}
+
+Coverage_Natura2000 <- 
+  Coverage %>%
+  drop_units() %>%
+  pivot_wider(names_from = SizeGroup,
+              values_from = Value)
+i = 0
+j = 0
+
+for(i in seq(0, 10, by = 1)){
+  for(j in seq(0, 1, by = .1)){
+    
+    Selection <- 
+      Global_marine_CDDA %>%
+      filter(siteArea >= i *100 &
+               MarineShare >= j) %>%
+      select(cddaId)
+    
+    Selection_sf <- 
+      right_join(
+        Global_CDDA_marine_sf,
+        Selection,
+        by = "cddaId"
+        )
+    
+    test <- st_combine(Selection_sf)
+    
+    Marine_Selection_sf <- 
+      st_difference(
+        test,
+        EU_land
+      )
+      
+    test <- st_combine(Selection_sf)
+    area <- st_area(test) /1e6
+    
+    
+    CoverageTemp <- 
+      data.frame(
+        SizeGroup = i,
+        MarineArea = j,
+        Value = area)
+    
+    if(i == 0 & j == 0){
+      Coverage <- CoverageTemp
+    } else {
+      Coverage <- 
+        bind_rows(
+          Coverage,
+          CoverageTemp)
+    }
+  }
+}
+
+Coverage_CDDA <- 
+  Coverage %>%
+  drop_units() %>%
+  pivot_wider(names_from = SizeGroup,
+              values_from = Value)
