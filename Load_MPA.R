@@ -25,7 +25,8 @@ package.list <-
     "xlsx",
     "scales",
     "lubridate",
-    "sf"
+    "sf",
+    "rmapshaper"
   )
 
 attachPackages(package.list)
@@ -82,7 +83,10 @@ EU_land <-
         dsn = "Input/CDDA_2021_v01_public.gpkg",
         layer = "DesignatedArea"))
   
-  save(CDDA_sf, CDDA_DesignationType, CDDA_DesignatedArea, file = "Output/CDDA.Rdata")
+  save(CDDA_sf,
+       CDDA_DesignationType, 
+       CDDA_DesignatedArea,
+       file = "Output/CDDA.Rdata")
   
   start_time <- Sys.time()
   print(start_time)
@@ -105,14 +109,14 @@ EU_land <-
         filter(cddaCountryCode == i & geomType == "polygon")
       
       if(i == "FI"){
-        CDDA_marine_sf <-
-          CDDA_marine_sf %>%
+        marine_CDDA_sf <-
+          marine_CDDA_sf %>%
           filter(FALSE)
-        CDDA_marine <-
-          CDDA_marine %>%
+        marine_CDDA <-
+          marine_CDDA %>%
           filter(FALSE)
       } else {
-        CDDA_marine_sf <-
+        marine_CDDA_sf <-
           st_join(
             CDDA_redux_country_sf,
             EU_land,
@@ -120,9 +124,9 @@ EU_land <-
           filter(is.na(Id)) %>%
           select(-Id, Shape_Leng, Shape_Area)
         
-        CDDA_marine <- 
+        marine_CDDA <- 
           left_join(
-            CDDA_marine_sf %>% 
+            marine_CDDA_sf %>% 
               st_drop_geometry() %>%
               select(cddaId),
             CDDA_DesignatedArea,
@@ -130,23 +134,23 @@ EU_land <-
         
       }
               
-      CDDA_marine_test <- 
+      marine_CDDA_test <- 
         CDDA_DesignatedArea %>%
         filter(cddaCountryCode == i &
                  majorEcosystemType != "terrestrial")
       
-      CDDA_marine_sf_test <- 
+      marine_CDDA_test_sf <- 
         left_join(
-          CDDA_marine_test %>% select(cddaId),
+          marine_CDDA_test %>% select(cddaId),
           CDDA_sf,
           by = "cddaId"
         )
-      
+
       dir.create(file.path(getwd(), 
                            paste0("Output/",Code[1])),
                  showWarnings = FALSE)  
       
-      write.xlsx2(CDDA_marine, 
+      write.xlsx2(marine_CDDA, 
                   file = paste0("Output/", 
                                 Code[1],
                                 "/CDDA_", 
@@ -158,10 +162,10 @@ EU_land <-
                   append = FALSE)
       
       
-      save(CDDA_marine,
-           CDDA_marine_sf,
-           CDDA_marine_test,
-           CDDA_marine_sf_test,
+      save(marine_CDDA,
+           marine_CDDA_sf,
+           marine_CDDA_test,
+           marine_CDDA_test_sf,
            file = 
              paste0("Output/", 
                     Code[1],
@@ -169,7 +173,7 @@ EU_land <-
                     Code[1],
                     ".Rdata"))
       
-      st_write(CDDA_marine_sf,
+      st_write(marine_CDDA_sf,
                paste0("Output/", 
                       Code[1],
                       "/CDDA_",
@@ -243,38 +247,38 @@ Natura2000_redux_sf <-
   rename(COUNTRY_CODE = MS) %>%
   select(-id)
 
-Natura2000_sites  <-
+sites_Natura2000  <-
   st_read(
     dsn = "Input/Natura2000_end2021.gpkg",
     layer = "NATURA2000SITES",
     stringsAsFactors = TRUE) 
 
-Natura2000_Marine <- 
-  Natura2000_sites  %>%
+marine_Natura2000 <- 
+  sites_Natura2000  %>%
   filter(MARINE_AREA_PERCENTAGE > 0)
 
-Natura2000_sites_MarineIndex <-
-  Natura2000_sites %>%
+sites_Natura2000_MarineIndex <-
+  sites_Natura2000 %>%
   select(SITECODE,
          MARINE_AREA_PERCENTAGE)
 
-Natura2000_Marine_sf <- 
+marine_Natura2000_sf <- 
   dplyr::left_join(
     Natura2000_sf,
-    Natura2000_sites_MarineIndex) %>%
+    sites_Natura2000_MarineIndex) %>%
   filter(MARINE_AREA_PERCENTAGE > 0)
 
-Natura2000_Marine <- 
-  Natura2000_sites %>%
+marine_Natura2000 <- 
+  sites_Natura2000 %>%
   filter(MARINE_AREA_PERCENTAGE > 0)
 
-Natura2000_Marine_test <- 
-  Natura2000_Marine %>%
+marine_Natura2000_test <- 
+  marine_Natura2000 %>%
   group_by(COUNTRY_CODE) %>%
   summarise(N = n())
 
-Natura2000_sites_test <- 
-  Natura2000_sites %>%
+sites_Natura2000_test <- 
+  sites_Natura2000 %>%
   group_by(COUNTRY_CODE) %>%
   summarise(N = n())
 
@@ -288,28 +292,28 @@ for(i in CountryCodes$CountryCode){
     select(CountryFile) %>%
     as.list()
   
-  Natura2000_country_sf <- 
+  country_Natura2000_sf <- 
     Natura2000_sf %>%
     filter(COUNTRY_CODE == i)
   
-  Natura2000_country <- 
-    Natura2000_sites %>%
+  country_Natura2000 <- 
+    sites_Natura2000 %>%
     filter(COUNTRY_CODE == i)
   
-  Natura2000_marine_sf <-
+  marine_Natura2000_sf <-
     st_join(
-      Natura2000_country_sf,
+      country_Natura2000_sf,
       EU_land,
       join = st_covered_by) %>%
     filter(is.na(Id)) %>%
     select(-Id, Shape_Leng, Shape_Area)
 
-  Natura2000_marine <- 
+  marine_Natura2000 <- 
     left_join(
-      Natura2000_marine_sf %>% 
+      marine_Natura2000_sf %>% 
         st_drop_geometry() %>%
         select(SITECODE),
-      Natura2000_country,
+      country_Natura2000,
       by = "SITECODE"
     )
   
@@ -317,7 +321,7 @@ for(i in CountryCodes$CountryCode){
                        paste0("Output/",Code[1])),
              showWarnings = FALSE)  
   
-  write.xlsx2(Natura2000_marine, 
+  write.xlsx2(marine_Natura2000, 
               file = paste0("Output/", 
                             Code[1],
                             "/Natura2000_", 
@@ -328,7 +332,7 @@ for(i in CountryCodes$CountryCode){
               row.names = FALSE, 
               append = FALSE)
   
-  st_write(Natura2000_marine_sf,
+  st_write(marine_Natura2000_sf,
            paste0("Output/", 
                   Code[1],
                   "/Natura2000_",
@@ -337,7 +341,7 @@ for(i in CountryCodes$CountryCode){
            "Natura2000 Marine",
            append = FALSE)
   
-  st_write(Natura2000_marine,
+  st_write(marine_Natura2000,
            paste0("Output/", 
                   Code[1],
                   "/Natura2000_",
@@ -352,10 +356,10 @@ for(i in CountryCodes$CountryCode){
                    Code[1],
                    ".gpkg"))
   
-  save(Natura2000_country,
-       Natura2000_country_sf, 
-       Natura2000_marine_sf,
-       Natura2000_marine,
+  save(country_Natura2000,
+       country_Natura2000_sf, 
+       marine_Natura2000_sf,
+       marine_Natura2000,
        file = paste0("Output/", 
                      Code[1],
                      "/Natura2000_", 
@@ -391,41 +395,41 @@ for(i in CountryCodes$CountryCode){
               ".Rdata"))
   
   if(i == "BE"){
-    Global_CDDA_marine <- CDDA_marine
-    Global_CDDA_marine_sf <- CDDA_marine_sf %>%
+    Global_marine_CDDA <- marine_CDDA
+    Global_marine_CDDA_sf <- marine_CDDA_sf %>%
       select(-metadata_beginLifeSpanVersion)
-    Global_CDDA_marine_test <- CDDA_marine_test
-    Global_CDDA_marine_sf_test <- CDDA_marine_sf_test %>%
+    Global_marine_CDDA_test <- marine_CDDA_test
+    Global_marine_CDDA_test_sf <- marine_CDDA_test_sf %>%
       select(-metadata_beginLifeSpanVersion)
-    Global_Natura2000_marine <- Natura2000_marine
-    Global_Natura2000_marine_sf <- Natura2000_marine_sf 
+    Global_marine_Natura2000 <- marine_Natura2000
+    Global_marine_Natura2000_sf <- marine_Natura2000_sf 
   } else {
-    Global_CDDA_marine <- 
+    Global_marine_CDDA <- 
       dplyr::bind_rows(
-        Global_CDDA_marine,
-        CDDA_marine )
-    Global_CDDA_marine_sf <- 
+        Global_marine_CDDA,
+        marine_CDDA )
+    Global_marine_CDDA_sf <- 
       rbind(
-        Global_CDDA_marine_sf,
-        CDDA_marine_sf  %>%
+        Global_marine_CDDA_sf,
+        marine_CDDA_sf  %>%
           select(-metadata_beginLifeSpanVersion))
-    Global_CDDA_marine_test <- 
+    Global_marine_CDDA_test <- 
       dplyr::bind_rows(
-        Global_CDDA_marine_test,
-        CDDA_marine_test )
-    Global_CDDA_marine_sf_test <- 
+        Global_marine_CDDA_test,
+        marine_CDDA_test )
+    Global_marine_CDDA_test_sf <- 
       rbind(
-        Global_CDDA_marine_sf_test,
-        CDDA_marine_sf_test  %>%
+        Global_marine_CDDA_test_sf,
+        marine_CDDA_test_sf  %>%
           select(-metadata_beginLifeSpanVersion))
-    Global_Natura2000_marine <- 
+    Global_marine_Natura2000 <- 
       dplyr::bind_rows(
-        Global_Natura2000_marine,
-        Natura2000_marine )
-    Global_Natura2000_marine_sf <- 
+        Global_marine_Natura2000,
+        marine_Natura2000 )
+    Global_marine_Natura2000_sf <- 
       rbind(
-        Global_Natura2000_marine_sf,
-        Natura2000_marine_sf)
+        Global_marine_Natura2000_sf,
+        marine_Natura2000_sf)
   }
   
   end_time <- Sys.time()    
@@ -434,29 +438,53 @@ for(i in CountryCodes$CountryCode){
   print(paste(i, "OK"))
 }
 
-save(Global_CDDA_marine,
-     Global_CDDA_marine_sf, 
-     Global_CDDA_marine_test,
-     Global_CDDA_marine_sf_test,
-     file = paste0("Output/Global_CDDA.Rdata")
+Global_land_CDDA_sf <- 
+  st_intersection(Global_marine_CDDA_sf,
+                  EU_land)
+
+Global_only_marine_CDDA_sf <- 
+  rmapshaper::ms_erase(
+    Global_marine_CDDA_sf,
+    EU_land)
+
+save(Global_marine_CDDA,
+     Global_marine_CDDA_sf,
+     Global_land_CDDA_sf,
+     Global_only_marine_CDDA_sf,
+     Global_marine_CDDA_test,
+     Global_marine_CDDA_test_sf,
+     file = "Input/Global_CDDA.Rdata"
 )
 
-st_write(Global_CDDA_marine_sf,
+load("Input/Global_CDDA.Rdata")
+
+st_write(Global_marine_CDDA_sf,
          "Output/Global_CDDA.gpkg", 
          "CDDA marine subset", 
          append = TRUE)
 
-st_write(Global_CDDA_marine_sf_test,
+st_write(Global_marine_CDDA_test_sf,
          "Output/Global_CDDA.gpkg", 
          "CDDA marine from ratio", 
          append = TRUE)
 
-save(Global_Natura2000_marine,
-     Global_Natura2000_marine_sf, 
-     file = paste0("Output/Global_Natura2000.Rdata")
+Global_land_Natura2000_sf <- 
+  st_intersection(Global_marine_Natura2000_sf,
+                  EU_land)
+
+Global_only_marine_Natura2000_sf <- 
+  rmapshaper::ms_erase(
+    Global_marine_Natura2000_sf,
+    EU_land)
+
+save(Global_marine_Natura2000,
+     Global_marine_Natura2000_sf, 
+     Global_land_Natura2000_sf,
+     Global_only_marine_Natura2000_sf,
+     file = "Input/Global_Natura2000.Rdata"
 )
 
-st_write(Global_Natura2000_marine_sf,
+st_write(Global_marine_Natura2000_sf,
          "Output/Global_Natura2000.gpkg", 
          "Natura2000 marine subset", 
          append = TRUE)

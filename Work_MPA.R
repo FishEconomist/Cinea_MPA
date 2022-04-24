@@ -25,7 +25,9 @@ package.list <-
     "scales",
     "lubridate",
     "sf",
-    "units"
+    "units",
+    "rmapshaper",
+    "maptools"
   )
 
 attachPackages(package.list)
@@ -45,54 +47,63 @@ CountryCodes <-
   ) %>%
   mutate(CountryFile = str_replace(Country, " ", "_"))
 
-EU_land <- 
-  st_read(
-    dsn = "Input/EEA_Coastline_Polygon_Shape/EEA_Coastline_20170228.shp") %>% 
-  mutate(Id = 1)
+# EU_land <- 
+#   st_read(
+#     dsn = "Input/EEA_Coastline_Polygon_Shape/EEA_Coastline_20170228.shp") %>% 
+#   mutate(Id = 1)
 
 #---- Prepare data ----
 
-Global_Natura2000_marine_init <- 
-  Global_Natura2000_marine
-Global_CDDA_marine_init <- 
-  Global_CDDA_marine %>%
+Global_marine_Natura2000_init <- 
+  Global_marine_Natura2000
+Global_marine_CDDA_init <- 
+  Global_marine_CDDA %>%
   filter(cddaRegionCode %notin% c("TF"))
-Global_CDDA_marine_test_init <- 
-  Global_CDDA_marine_test %>%
+Global_marine_CDDA_test_init <- 
+  Global_marine_CDDA_test %>%
   filter(cddaRegionCode %notin% c("TF"))
 
+Global_marine_Natura2000_sf$GISarea <-
+  st_area(Global_marine_Natura2000_sf) / 1e4
 
-Global_Natura2000_marine_sf$GISarea <-
-  st_area(Global_Natura2000_marine_sf) / 1e4
+Global_land_Natura2000_sf$GISarea_land <- 
+  st_area(Global_land_Natura2000_sf) / 1e4
 
-Global_CDDA_marine_sf$GISarea <-
-  st_area(Global_CDDA_marine_sf) / 1e4
+Global_only_marine_Natura2000_sf$GISarea_marine <- 
+  st_area(Global_only_marine_Natura2000_sf) / 1e4
 
-test_Natura2000_sf <- 
-  st_intersection(Global_Natura2000_marine_sf,
-                  EU_land)
+Global_marine_CDDA_sf$GISarea <-
+  st_area(Global_marine_CDDA_sf) / 1e4
 
-test_Natura2000_sf$GISarea_land <- 
-  st_area(test_Natura2000_sf) / 1e4
+Global_land_CDDA_sf$GISarea_land <- 
+  st_area(Global_land_CDDA_sf) / 1e4
 
-test_CDDA_sf <- 
-  st_intersection(Global_CDDA_marine_sf,
-                  EU_land)
-
-test_CDDA_sf$GISarea_land <- 
-  st_area(test_CDDA_sf) / 1e4
+Global_only_marine_CDDA_sf$GISarea_marine <- 
+  st_area(Global_only_marine_CDDA_sf) / 1e4
 
 landArea_Natura2000 <- 
-  test_Natura2000_sf %>%
+  Global_land_Natura2000_sf %>%
   st_drop_geometry() %>%
   group_by(SITECODE) %>%
   summarise(GISarea_land = sum(GISarea_land, na.rm = TRUE))
 
+marineArea_Natura2000 <- 
+  Global_only_marine_Natura2000_sf %>%
+  st_drop_geometry() %>%
+  group_by(SITECODE) %>%
+  summarise(GISarea_marine = sum(GISarea_marine, na.rm = TRUE))
+
 landArea_CDDA <- 
-  test_CDDA_sf %>%
+  Global_land_CDDA_sf %>%
   st_drop_geometry() %>%
   group_by(cddaId) %>%
   summarise(GISarea_land = sum(GISarea_land, na.rm = TRUE))
+
+marineArea_CDDA <- 
+  Global_only_marine_CDDA_sf %>%
+  st_drop_geometry() %>%
+  group_by(cddaId) %>%
+  summarise(GISarea_marine = sum(GISarea_marine, na.rm = TRUE))
 
 CountryCodesBase <- 
   CountryCodes %>% 
@@ -115,14 +126,17 @@ Global_marine_Natura2000 <-
   dplyr::left_join(
     dplyr::left_join(
       dplyr::left_join(
-        Global_Natura2000_marine_init,
-        CountryCodes,
-        by = c("COUNTRY_CODE" = "CountryCode")),
-      Global_Natura2000_marine_sf %>%
-        st_drop_geometry() %>%
-        select(SITECODE, GISarea),
+        dplyr::left_join(
+          Global_marine_Natura2000_init,
+          CountryCodes,
+          by = c("COUNTRY_CODE" = "CountryCode")),
+        Global_marine_Natura2000_sf %>%
+          st_drop_geometry() %>%
+          select(SITECODE, GISarea),
+        by = "SITECODE"),
+      landArea_Natura2000,
       by = "SITECODE"),
-    landArea_Natura2000,
+    marineArea_Natura2000,
     by = "SITECODE") %>%
   drop_units() %>%
   mutate(
@@ -140,36 +154,31 @@ Global_marine_Natura2000 <-
       TRUE ~ "no size reported"
     ),
     MarineShareGroup = trunc(MarineShare * 10) *10
-    )
-
-# dplyr::left_join(
-# Global_CDDA_marine_init,
-# CountryCodes,
-# by = c("cddaCountryCode" = "CountryCode"))
+  )
 
 Global_marine_CDDA <- 
   dplyr::left_join(
     dplyr::left_join(
       dplyr::left_join(
-        Global_CDDA_marine_init,
-        CountryCodes,
-        by = c("cddaCountryCode" = "CountryCode")),
-      Global_CDDA_marine_sf %>%
-        st_drop_geometry() %>%
-        select(cddaId, GISarea),
+        dplyr::left_join(
+          Global_marine_CDDA_init,
+          CountryCodes,
+          by = c("cddaCountryCode" = "CountryCode")),
+        Global_marine_CDDA_sf %>%
+          st_drop_geometry() %>%
+          select(cddaId, GISarea),
+        by = "cddaId"),
+      landArea_CDDA,
       by = "cddaId"),
-    landArea_CDDA,
-    by = "cddaId") %>%
+    marineArea_CDDA,
+    by = "cddaId")%>%
   drop_units() %>%
   mutate(
     GISarea_land = ifelse(is.na(GISarea_land), 0, GISarea_land),
     MarineShare = 1 - GISarea_land / GISarea,
     MarineArea <- MarineShare * siteArea, 
     MarineShareGroup = trunc(MarineShare * 10) *10
-    )
-
-Global_marine_CDDA <- 
-Global_marine_CDDA %>%
+  ) %>%
   mutate(AreaGroup = case_when(
     siteArea <= 100 ~ "0-1 km2",
     siteArea <= 200 ~ "1-2 km2",
@@ -182,7 +191,7 @@ Global_marine_CDDA %>%
 
 Global_marine_CDDA_test <- 
   dplyr::left_join(
-    Global_CDDA_marine_test_init,
+    Global_marine_CDDA_test_init,
     CountryCodes,
     by = c("cddaCountryCode" = "CountryCode")) %>%
   mutate(AreaGroup = case_when(
@@ -486,7 +495,7 @@ size_IUCN <-
   print()
 
 limited_Global_marine_Natura2000_sf <- 
-  right_join(Global_Natura2000_marine_sf, 
+  right_join(Global_marine_Natura2000_sf, 
             Global_marine_Natura2000 
             %>% filter(AREAHA >= 500)
             %>% select(SITECODE))
@@ -497,7 +506,7 @@ st_write(limited_Global_marine_Natura2000_sf,
          append = FALSE)
 
 limited_Global_marine_CDDA_sf <- 
-  right_join(Global_CDDA_marine_sf,
+  right_join(Global_marine_CDDA_sf,
              Global_marine_CDDA
             %>% filter(siteArea >= 500)
             %>% select(cddaId))
@@ -509,29 +518,49 @@ st_write(limited_Global_marine_CDDA_sf,
 
 #---- here ----
 
-test <- st_combine(Global_Natura2000_marine_sf)
-area <- st_area(test)
+
+i = 0
+j = 0
+
+# ncmp <- 
+#   st_cast(Global_only_marine_Natura2000_sf,
+#           "POLYGON") %>%
+#   select(SITECODE, geometry)
+#   
+# 
+# 
+QGIS_valide_Natura2000  <- 
+  st_read(
+    dsn = "Input/QGIS_valide_marine_Natura2000.gpkg") %>%
+  select(SITECODE, AREAHA, MarineShare)
+
+
+QGIS_valide_CDDA  <- 
+  st_read(
+    dsn = "Input/QGIS_valide_marine_CDDA.gpkg") %>%
+  select(cddaId, siteArea, MarineShare)
+
 
 for(i in seq(0, 10, by = 1)){
   for(j in seq(0, 1, by = .1)){
     
-    Selection <- 
-      Global_marine_Natura2000 %>%
-      filter(AREAHA >= i *100 &
-               MarineShare >= j) %>%
-      select(SITECODE)
     
     Selection_sf <- 
-      right_join(
-        Global_Natura2000_marine_sf,
-        Selection,
-        by = "SITECODE"
-      )
+      QGIS_valide_Natura2000 %>%
+      filter(AREAHA >= i *100 &
+               MarineShare >= j) %>%
+      select(SITECODE, AREAHA, MarineShare)
     
-    test <- st_combine(Selection_sf)
-    area <- st_area(test) / 1e6
+    test <- as_Spatial(Selection_sf)
+
+    union <- 
+      st_as_sf(
+        unionSpatialPolygons(
+          test,
+          rep(1, nrow(test))))
     
-    
+    area <- round(st_area(union) / 1e6)
+
     CoverageTemp <- 
       data.frame(
         SizeGroup = i,
@@ -539,51 +568,43 @@ for(i in seq(0, 10, by = 1)){
         Value = area)
     
     if(i == 0 & j == 0){
-      Coverage <- CoverageTemp
+      Coverage_Natura2000 <- CoverageTemp
     } else {
-      Coverage <- 
+      Coverage_Natura2000 <- 
         bind_rows(
-          Coverage,
+          Coverage_Natura2000,
           CoverageTemp)
     }
   }
 }
 
 Coverage_Natura2000 <- 
-  Coverage %>%
+  Coverage_Natura2000 %>%
   drop_units() %>%
   pivot_wider(names_from = SizeGroup,
-              values_from = Value)
-i = 0
-j = 0
+              values_from = Value) %>%
+  print()
+
+
 
 for(i in seq(0, 10, by = 1)){
   for(j in seq(0, 1, by = .1)){
     
-    Selection <- 
-      Global_marine_CDDA %>%
+    Selection_sf <- 
+      QGIS_valide_CDDA %>%
       filter(siteArea >= i *100 &
                MarineShare >= j) %>%
-      select(cddaId)
+      select(cddaId, siteArea, MarineShare)
     
-    Selection_sf <- 
-      right_join(
-        Global_CDDA_marine_sf,
-        Selection,
-        by = "cddaId"
-        )
+    test <- as_Spatial(Selection_sf)
     
-    test <- st_combine(Selection_sf)
+    union <- 
+      st_as_sf(
+        unionSpatialPolygons(
+          test,
+          rep(1, nrow(test))))
     
-    Marine_Selection_sf <- 
-      st_difference(
-        test,
-        EU_land
-      )
-      
-    test <- st_combine(Selection_sf)
-    area <- st_area(test) /1e6
-    
+    area <- round(st_area(union) /1e6)
     
     CoverageTemp <- 
       data.frame(
@@ -592,18 +613,19 @@ for(i in seq(0, 10, by = 1)){
         Value = area)
     
     if(i == 0 & j == 0){
-      Coverage <- CoverageTemp
+      Coverage_CDDA <- CoverageTemp
     } else {
-      Coverage <- 
+      Coverage_CDDA <- 
         bind_rows(
-          Coverage,
+          Coverage_CDDA,
           CoverageTemp)
     }
   }
 }
 
 Coverage_CDDA <- 
-  Coverage %>%
+  Coverage_CDDA %>%
   drop_units() %>%
   pivot_wider(names_from = SizeGroup,
-              values_from = Value)
+              values_from = Value) %>%
+  print()
