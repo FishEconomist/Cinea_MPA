@@ -4,3 +4,5 @@ Global_Natura2000.Rdata
 Global_Natura2000.gpkg
 EEA_Coastline_Polygon_Shape
 ~$CountryCodes.xlsx
+QGIS_valide_marine_Natura2000.gpkg
+QGIS_valide_marine_CDDA.gpkg
