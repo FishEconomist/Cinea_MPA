@@ -53,20 +53,20 @@ EU_land <-
   mutate(Id = 1)
 
 
-  st_layers("Input/CDDA_2021_rework.gpkg")
+  st_layers("Input/CDDA_2021_rework_clean.gpkg")
   
   CDDA_sf <-
     funCharAsFactor(
       st_read(
         dsn = "Input/CDDA_2021_v01_public.gpkg",
         layer = "ProtectedSite")) %>%
-    st_transform(3035) 
+    st_transform(3035)
 
   CDDA_redux_sf <- 
     funCharAsFactor(
       st_read(
-        dsn = "Input/CDDA_2021_rework.gpkg",
-        layer = "CDDA_2021_rework")) %>%
+        dsn = "Input/CDDA_2021_rework_clean.gpkg",
+        layer = "CDDA_2021_rework_clean")) %>%
     st_transform(3035)
   
   st_crs(CDDA_sf)
@@ -93,7 +93,7 @@ EU_land <-
   
   for(i in CountryCodes$CountryCode){
     
-    if(i %in% c("BE", "DK", "EE", "FI")){
+    if(i %notin% c( "FI")){
       
       Code <- CountryCodes %>%
         filter(CountryCode == i) %>%
@@ -107,16 +107,8 @@ EU_land <-
       CDDA_redux_country_sf <-
         CDDA_redux_sf %>% 
         filter(cddaCountryCode == i & geomType == "polygon")
-      
-      if(i == "FI"){
-        marine_CDDA_sf <-
-          marine_CDDA_sf %>%
-          filter(FALSE)
-        marine_CDDA <-
-          marine_CDDA %>%
-          filter(FALSE)
-      } else {
-        marine_CDDA_sf <-
+
+        CDDA_marine_sf <-
           st_join(
             CDDA_redux_country_sf,
             EU_land,
@@ -132,7 +124,7 @@ EU_land <-
             CDDA_DesignatedArea,
             by = "cddaId")
         
-      }
+     
               
       marine_CDDA_test <- 
         CDDA_DesignatedArea %>%
