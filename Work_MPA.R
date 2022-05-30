@@ -142,7 +142,7 @@ Global_marine_Natura2000 <-
   mutate(
     GISarea_land = ifelse(is.na(GISarea_land), 0, GISarea_land),
     MarineShare = 1 - GISarea_land / GISarea,
-    MarineArea <- MarineShare * AREAHA, 
+    MarineArea = MarineShare * AREAHA, 
     AreaGroup = case_when(
       AREAHA <= 100 ~ "0-1 km2",
       AREAHA <= 200 ~ "1-2 km2",
@@ -176,7 +176,7 @@ Global_marine_CDDA <-
   mutate(
     GISarea_land = ifelse(is.na(GISarea_land), 0, GISarea_land),
     MarineShare = 1 - GISarea_land / GISarea,
-    MarineArea <- MarineShare * siteArea, 
+    MarineArea = MarineShare * siteArea, 
     MarineShareGroup = trunc(MarineShare * 10) *10
   ) %>%
   mutate(AreaGroup = case_when(
@@ -188,6 +188,8 @@ Global_marine_CDDA <-
     siteArea <= 1000 ~ "5-10 km2",
     siteArea > 1000 ~ "over 10 km2",
     TRUE ~ "no size reported"))  
+
+
 
 Global_marine_CDDA_test <- 
   dplyr::left_join(
@@ -203,13 +205,16 @@ Global_marine_CDDA_test <-
     siteArea <= 1000 ~ "5-10 km2",
     siteArea > 1000 ~ "over 10 km2",
     TRUE ~ "no size reported"),
-    marineAreaPercGroup =  marineAreaPercentage %/% 10 * 10
+    MarineShareGroup =  marineAreaPercentage %/% 10 * 10
   )
+
+
 
 
 #---- MPA Size range ----
 
-SizeRange_N_Natura2000 <- Global_marine_Natura2000 %>%
+SizeRange_N_Natura2000 <- 
+  Global_marine_Natura2000 %>%
   group_by(Lot, CountryFile, Order, AreaGroup) %>%
   summarise(N = n()) %>%
   arrange(match(AreaGroup, varAreaGroup)) %>%
@@ -220,7 +225,8 @@ SizeRange_N_Natura2000 <- Global_marine_Natura2000 %>%
   select(-Order) %>%
   print()
 
-SizeRange_N_CDDA <- Global_marine_CDDA %>%
+SizeRange_N_CDDA <- 
+  Global_marine_CDDA %>%
   group_by(Lot, CountryFile, Order, AreaGroup) %>%
   summarise(N = n()) %>%
   arrange(match(AreaGroup, varAreaGroup)) %>%
@@ -231,7 +237,8 @@ SizeRange_N_CDDA <- Global_marine_CDDA %>%
   select(-Order) %>%
   print()
 
-SizeRange_N_CDDA_test <- Global_marine_CDDA_test %>%
+SizeRange_N_CDDA_test <- 
+  Global_marine_CDDA_test %>%
   group_by(Lot, CountryFile, Order, AreaGroup) %>%
   summarise(N = n()) %>%
   arrange(match(AreaGroup, varAreaGroup)) %>%
@@ -242,7 +249,8 @@ SizeRange_N_CDDA_test <- Global_marine_CDDA_test %>%
   select(-Order) %>%
   print()
 
-SizeRange_km_Natura2000 <- Global_marine_Natura2000 %>%
+SizeRange_km_Natura2000 <- 
+  Global_marine_Natura2000 %>%
   group_by(Lot, CountryFile, Order, AreaGroup) %>%
   summarise(Area = sum(AREAHA, na.rm = TRUE)) %>%
   arrange(match(AreaGroup, varAreaGroup)) %>%
@@ -253,7 +261,8 @@ SizeRange_km_Natura2000 <- Global_marine_Natura2000 %>%
   select(-Order) %>%
   print()
 
-SizeRange_km_CDDA <- Global_marine_CDDA %>%
+SizeRange_km_CDDA <- 
+  Global_marine_CDDA %>%
   group_by(Lot, CountryFile, Order, AreaGroup) %>%
   summarise(Area = sum(siteArea, na.rm = TRUE)) %>%
   arrange(match(AreaGroup, varAreaGroup)) %>%
@@ -264,11 +273,173 @@ SizeRange_km_CDDA <- Global_marine_CDDA %>%
   select(-Order) %>%
   print()
 
-SizeRange_km_CDDA_test <- Global_marine_CDDA_test %>%
+SizeRange_km_CDDA_test <- 
+  Global_marine_CDDA_test %>%
   group_by(Lot, CountryFile, Order, AreaGroup) %>%
   summarise(Area = sum(siteArea, na.rm = TRUE)) %>%
   arrange(match(AreaGroup, varAreaGroup)) %>%
   pivot_wider(names_from = "AreaGroup",
+              values_from = "Area") %>%
+  arrange(Order) %>%
+  ungroup() %>%
+  select(-Order) %>%
+  print()
+
+#---- 5km2 cut off ----
+
+SizeRange_N_Natura2000_tot <- 
+  Global_marine_Natura2000 %>%
+  group_by(Lot, CountryFile, Order) %>%
+  summarise(N = n()) %>%
+  arrange(Order) %>%
+  ungroup() %>%
+  select(-Order) %>%
+  print()
+
+SizeRange_km_Natura2000_tot <- 
+  Global_marine_Natura2000 %>%
+  group_by(Lot, CountryFile, Order) %>%
+  summarise(Area = round(sum(AREAHA, na.rm = TRUE))) %>%
+  arrange(Order) %>%
+  ungroup() %>%
+  select(-Order) %>%
+  print()
+
+SizeRange_N_Natura2000_5k <- 
+  Global_marine_Natura2000 %>%
+  filter(AREAHA >= 500) %>%
+  group_by(Lot, CountryFile, Order, MarineShareGroup) %>%
+  summarise(N = n()) %>%
+  arrange(MarineShareGroup) %>%
+  pivot_wider(names_from = "MarineShareGroup",
+              values_from = "N") %>%
+  arrange(Order) %>%
+  ungroup() %>%
+  select(-Order) %>%
+  print()
+
+SizeRange_km_Natura2000_5k <- 
+  Global_marine_Natura2000 %>%
+  filter(AREAHA >= 500) %>%
+  group_by(Lot, CountryFile, Order, MarineShareGroup) %>%
+  summarise(Area = round(sum(AREAHA, na.rm = TRUE))) %>%
+  arrange(MarineShareGroup) %>%
+  pivot_wider(names_from = "MarineShareGroup",
+              values_from = "Area") %>%
+  arrange(Order) %>%
+  ungroup() %>%
+  select(-Order) %>%
+  print()
+
+SizeRange_N_Natura2000_5kmar <- 
+  Global_marine_Natura2000 %>%
+  filter(MarineArea >= 500) %>%
+  group_by(Lot, CountryFile, Order, MarineShareGroup) %>%
+  summarise(N = n()) %>%
+  arrange(MarineShareGroup) %>%
+  pivot_wider(names_from = "MarineShareGroup",
+              values_from = "N") %>%
+  arrange(Order) %>%
+  ungroup() %>%
+  select(-Order) %>%
+  print()
+
+SizeRange_km_Natura2000_5kmar <- 
+  Global_marine_Natura2000 %>%
+  filter(MarineArea >= 500) %>%
+  group_by(Lot, CountryFile, Order, MarineShareGroup) %>%
+  summarise(Area = round(sum(AREAHA, na.rm = TRUE))) %>%
+  arrange(MarineShareGroup) %>%
+  pivot_wider(names_from = "MarineShareGroup",
+              values_from = "Area") %>%
+  arrange(Order) %>%
+  ungroup() %>%
+  select(-Order) %>%
+  print()
+
+SizeRange_N_CDDA_tot <- 
+  Global_marine_CDDA %>%
+  group_by(Lot, CountryFile, Order) %>%
+  summarise(N = n()) %>%
+  arrange(Order) %>%
+  ungroup() %>%
+  select(-Order) %>%
+  print()
+
+
+SizeRange_km_CDDA_tot <- 
+  Global_marine_CDDA %>%
+  group_by(Lot, CountryFile, Order) %>%
+  summarise(Area = round(sum(siteArea, na.rm = TRUE))) %>%
+  arrange(Order) %>%
+  ungroup() %>%
+  select(-Order) %>%
+  print()
+
+SizeRange_N_CDDA_5k <- 
+  Global_marine_CDDA %>%
+  filter(siteArea >= 500) %>%
+  group_by(Lot, CountryFile, Order, MarineShareGroup) %>%
+  summarise(N = n()) %>%
+  arrange(MarineShareGroup) %>%
+  pivot_wider(names_from = "MarineShareGroup",
+              values_from = "N") %>%
+  arrange(Order) %>%
+  ungroup() %>%
+  select(-Order) %>%
+  print()
+
+SizeRange_km_CDDA_5k <- 
+  Global_marine_CDDA %>%
+  filter(siteArea >= 500) %>%
+  group_by(Lot, CountryFile, Order, MarineShareGroup) %>%
+  summarise(Area = round(sum(siteArea, na.rm = TRUE))) %>%
+  arrange(MarineShareGroup) %>%
+  pivot_wider(names_from = "MarineShareGroup",
+              values_from = "Area") %>%
+  arrange(Order) %>%
+  ungroup() %>%
+  select(-Order) %>%
+  print()
+
+SizeRange_N_CDDA_test_tot <- 
+  Global_marine_CDDA_test %>%
+  group_by(Lot, CountryFile, Order) %>%
+  summarise(N = n()) %>%
+  arrange(Order) %>%
+  ungroup() %>%
+  select(-Order) %>%
+  print()
+
+SizeRange_km_CDDA_test_tot <- 
+  Global_marine_CDDA_test %>%
+  group_by(Lot, CountryFile, Order) %>%
+  summarise(Area = round(sum(siteArea, na.rm = TRUE))) %>%
+  arrange(Order) %>%
+  ungroup() %>%
+  select(-Order) %>%
+  print()
+
+SizeRange_N_CDDA_5k_test <- 
+  Global_marine_CDDA_test %>%
+  filter(siteArea >= 500) %>%
+  group_by(Lot, CountryFile, Order, MarineShareGroup) %>%
+  summarise(N = n()) %>%
+  arrange(MarineShareGroup) %>%
+  pivot_wider(names_from = "MarineShareGroup",
+              values_from = "N") %>%
+  arrange(Order) %>%
+  ungroup() %>%
+  select(-Order) %>%
+  print()
+
+SizeRange_km_CDDA_5k_test <- 
+  Global_marine_CDDA_test %>%
+  filter(siteArea >= 500) %>%
+  group_by(Lot, CountryFile, Order, MarineShareGroup) %>%
+  summarise(Area = round(sum(siteArea, na.rm = TRUE))) %>%
+  arrange(MarineShareGroup) %>%
+  pivot_wider(names_from = "MarineShareGroup",
               values_from = "Area") %>%
   arrange(Order) %>%
   ungroup() %>%
