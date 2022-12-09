@@ -18,7 +18,7 @@ ExtractMultipleColumn <-
     
     BaseValue <- 
       Base %>%
-      select(SiteCode, VarName) %>%
+      select(SiteCode, all_of(VarName)) %>%
       separate(VarName, 
                sep = ";",
                into = paste0("Var_", 

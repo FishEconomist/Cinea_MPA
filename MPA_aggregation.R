@@ -32,7 +32,16 @@ package.list <-
 attachPackages(package.list)
 source("R/Format.R")
 source("R/MPAscripts.R")
-lstCountries <- c("Estonia", "Ireland", "Netherlands")
+
+#---- Aggregating files ----
+lstCountries <- c("Belgium",
+                  "Estonia", 
+                  "Ireland",
+                  "Latvia",
+                  "Netherlands",
+                  "Portugal",
+                  "Sweden"
+                  )
 # lstCountries <- "Netherlands"
 k <- 0
 for(i in lstCountries){
@@ -44,6 +53,14 @@ for(i in lstCountries){
     paste0(
       "Output/Selection/", i, "/Selection_", i, ".Rdata"))
   
+  Country <- 
+    Natura2000_country %>%
+    group_by(COUNTRY_CODE) %>%
+    summarise(n())
+  
+  CountryKeep <-
+    Country$COUNTRY_CODE
+  
   tmpBaseNatura2000 <- 
     read_excel(
       path = paste0("Input/Excels/", i, "_QC.xlsm"),
@@ -53,6 +70,8 @@ for(i in lstCountries){
     ) %>%
     mutate(
       SiteCode = as.factor(SiteCode),
+      Country = CountryKeep[1],
+      CountryName = i,
       Base = "Natura2000") %>%
     funCharAsFactorExt() %>%
     filter(Relevant == "yes")
@@ -63,6 +82,7 @@ for(i in lstCountries){
         select(SiteCode),
       Natura2000_country,
       by = c("SiteCode" = "SITECODE"))
+    
    
   tmpSelectNatura2000_sf <- 
     left_join(
@@ -80,6 +100,8 @@ for(i in lstCountries){
     ) %>%
     mutate(
       SiteCode = as.factor(SiteCode),
+      Country = CountryKeep[1],
+      CountryName = i,
       Base = "CDDA") %>%
     funCharAsFactorExt() %>%
     filter(Relevant == "yes")
@@ -109,6 +131,8 @@ for(i in lstCountries){
     ) %>%
     mutate(
       SiteCode = as.factor(SiteCode),
+      Country = CountryKeep[1],
+      CountryName = i,
       Base = "Additional") %>%
     funCharAsFactorExt() %>%
     filter(Relevant == "yes")
@@ -170,9 +194,40 @@ for(i in lstCountries){
   rm(list = ls(pattern = "tmp"))
   rm(list = ls(pattern = "CDDA"))
   rm(list = ls(pattern = "Natura"))
-  
+  rm(list = ls(pattern = "Country"))
+
 }
 rm(i, k)
 
+BaseMPAInfo <- 
+  BaseMPAInfo %>%
+  select(-starts_with("Additional"))
+
+VarList <- 
+  c("IUCNType",
+    "OtherCommercial",
+    "OtherHumanThreats",
+    "TypeDataUsed",
+    "ComGearLevel1",
+    "ComGearLevel2",
+    "RecGearLevel1",
+    "RecGearLevel2",
+    "EnforcementKind",
+    "StakeholdersInvolved",
+    "DesigStakeholdersWhich",
+    "MeasStakeholdersWhich",
+    "ObjectivesConsequences",
+    "HabitatsLev1",
+    "HabitatsLev2",
+    "EcosystLev1",
+    "EcosystLev2",
+    "EcosystLev3",
+    "FishStocks")
+
+for(i in VarList){
+  Name <- paste0("BaseMult_", i)
+  assign(Name, ExtractMultipleColumn(VarName = i))
+}
+
 save(list = ls(pattern = "Base"),
-     )
+     file = "Input/RelevantMPA.Rdata")

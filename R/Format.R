@@ -7,7 +7,7 @@
 # Codage effectué en janvier - 2022
 #
 
-#---- fonction CharAsFactor -----
+#---- function CharAsFactor -----
 funCharAsFactor <- 
   function(
     DF,
@@ -20,14 +20,28 @@ funCharAsFactor <-
   return(DF_Factor)
 }
 
-#---- fonction FirstUpper ----
+#---- function CharAsFactorExt -----
+funCharAsFactorExt <- 
+  function(
+    DF,
+    origin){
+    DF_Factor <- 
+      DF %>%
+      mutate_all(as_factor) %>% 
+      mutate_at(vars(starts_with("Date")), as.Date, format = "%d/%m/%Y")
+    
+    return(DF_Factor)
+  }
+
+
+#---- function FirstUpper ----
 funFirstUpper <- 
   function(x) {
   substr(x, 1, 1) <- toupper(substr(x, 1, 1))
   x
 }
 
-#---- fonction Percent ----
+#---- function Percent ----
 funPercent <- 
   function(
     x,
@@ -37,7 +51,7 @@ funPercent <-
   paste0(formatC(x * 100, format = format, digits = digits, ...), "%")
 }
 
-#---- fonction FrenchPercent ----
+#---- function FrenchPercent ----
 funFrenchPercent <- 
   label_percent(
     decimal.mark = ",")
