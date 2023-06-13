@@ -317,8 +317,8 @@ st_write(Natura2000_select_sf,
          "Natura2000 data",
          append = FALSE)
 
+# load("Output/Selection/Selection_MPAs.Rdata")
 
-i <- "NL"
 
 start_time <- Sys.time()
 print(start_time)
